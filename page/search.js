@@ -1,11 +1,11 @@
-// Пошук фраз з клавіатури УКР/ENG. Під полем — скільки знайдено й перша фраза.
+// Пошук фраз вибраної мови з клавіатури УКР/ENG. Під полем — скільки знайдено й перша фраза.
 // ✓ — показати всі знайдені; ✓ при порожньому полі — назад.
 
 import * as hmUI from '@zos/ui'
 import { back, replace } from '@zos/router'
 import { getDeviceInfo } from '@zos/device'
 import { onGesture, offGesture, GESTURE_LEFT, GESTURE_RIGHT } from '@zos/interaction'
-import { CATS } from '../data/phrases'
+import { ITEMS } from '../data/phrases'
 import { buildIndex, search, norm } from '../utils/search'
 import { loadState, saveState } from '../utils/store'
 import { getQuery } from '../utils/nav'
@@ -23,7 +23,8 @@ const INFO_Y = 98
 Page({
   onInit() {
     this.state = loadState()
-    this.index = buildIndex(CATS)
+    this.lists = ITEMS[this.state.target] || ITEMS.de
+    this.index = buildIndex(this.lists)
     this.leaving = false
     this.gestureHooked = false
     this.keyboard = null
@@ -45,7 +46,7 @@ Page({
       y: 4,
       w: W - 120,
       h: 28,
-      text: 'Пошук: укр. або нім.',
+      text: 'Пошук: укр. або ' + (this.state.target === 'en' ? 'англ.' : 'нім.'),
       text_size: 20,
       color: COLOR.TEXT_DIM,
       align_h: hmUI.align.CENTER_H,
@@ -89,12 +90,12 @@ Page({
       width: W,
       height: H,
       editor: this.editor,
-      lang: this.state.lang,
+      lang: this.state.kb,
       doneIcon: 'kb/done.png',
       onText: () => this.update(),
       onDone: () => this.done(),
       onLang: (lang) => {
-        this.state.lang = lang
+        this.state.kb = lang
         saveState(this.state)
       }
     })
@@ -110,14 +111,17 @@ Page({
       h: INFO_Y - TEXT_Y - 2,
       text: fitTail(q + '|', TEXT_SIZE, this.textW, 2)
     })
-    let info = 'Набери слово українською або німецькою (умлаути можна не набирати).'
+    let info =
+      this.state.target === 'en'
+        ? 'Набери слово українською або англійською.'
+        : 'Набери слово українською або німецькою (умлаути можна не набирати).'
     let color = COLOR.TEXT_DIM
     if (norm(q)) {
       const r = search(this.index, q, 1)
       if (!r.total) info = 'Нічого не знайдено'
       else {
         const [ci, ii] = r.hits[0]
-        const it = CATS[ci].items[ii]
+        const it = this.lists[ci][ii]
         info = phrases(r.total) + ' · ' + it[0] + ' — ' + it[1]
         color = COLOR.DE
       }

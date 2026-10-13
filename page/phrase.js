@@ -1,16 +1,17 @@
-// Одна фраза: українською, німецькою, вимова. ‹ › — сусідні фрази списку.
+// Одна фраза: українською, іноземною, вимова. < > — сусідні фрази списку.
 
 import * as hmUI from '@zos/ui'
 import { push, replace, back } from '@zos/router'
 import { getDeviceInfo } from '@zos/device'
+import { LANG_SHORT } from '../data/meta'
 import { getList } from '../utils/nav'
-import { loadState, isFav, toggleFav } from '../utils/store'
+import { loadState, isFav, toggleFav, addRecent, keyOf } from '../utils/store'
 import { COLOR, STATUS_BAR_H, SCREEN_ON_MS } from '../utils/constants'
 import { statusBar, keepScreen, parseParams, textHeight, setProps } from '../utils/ui'
 
 const PAD = 22
 const UA_SIZE = 24
-const DE_SIZE = 34
+const FO_SIZE = 34
 const PR_SIZE = 28
 
 Page({
@@ -21,6 +22,7 @@ Page({
     this.pos = Math.max(0, Math.min(this.items.length - 1, Number(p.pos) || 0))
     this.item = this.items[this.pos] || null
     this.state = loadState()
+    this.key = this.item ? keyOf(this.item.lang, this.item.fo) : ''
     this.leaving = false
   },
 
@@ -50,12 +52,13 @@ Page({
     }
 
     const it = this.item
+    addRecent(this.state, this.key)
     hmUI.createWidget(hmUI.widget.TEXT, {
       x: PAD,
       y,
       w: textW,
       h: 30,
-      text: it.cat + ' · ' + (this.pos + 1) + ' з ' + this.items.length,
+      text: it.cat + ' · ' + (this.pos + 1) + ' з ' + this.items.length + ' · ' + (LANG_SHORT[it.lang] || ''),
       text_size: 20,
       color: COLOR.TEXT_DIM,
       align_h: hmUI.align.CENTER_H,
@@ -65,15 +68,15 @@ Page({
     y += 38
 
     const blocks =
-      it.dir === 'de'
+      it.dir === 'fo'
         ? [
-            [it.de, DE_SIZE, COLOR.TEXT],
+            [it.fo, FO_SIZE, COLOR.TEXT],
             [it.pr, PR_SIZE, COLOR.PRON],
             [it.ua, UA_SIZE, COLOR.TEXT_SOFT]
           ]
         : [
             [it.ua, UA_SIZE, COLOR.TEXT_SOFT],
-            [it.de, DE_SIZE, COLOR.TEXT],
+            [it.fo, FO_SIZE, COLOR.TEXT],
             [it.pr, PR_SIZE, COLOR.PRON]
           ]
     blocks.forEach(([text, size, color], i) => {
@@ -128,7 +131,7 @@ Page({
   },
 
   paintFav() {
-    const fav = isFav(this.state, this.item.de)
+    const fav = isFav(this.state, this.key)
     setProps(this.favBtn, {
       x: 16,
       y: this.favY,
@@ -140,7 +143,7 @@ Page({
   },
 
   toggle() {
-    toggleFav(this.state, this.item.de)
+    toggleFav(this.state, this.key)
     this.paintFav()
   },
 

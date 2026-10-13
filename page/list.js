@@ -1,13 +1,14 @@
-// Список фраз: категорія, обране або результати пошуку.
-// Параметри: { cat } | { fav: 1 } | { q }.
+// Список фраз: категорія, обране, нещодавні або результати пошуку.
+// Параметри: { cat } | { fav: 1 } | { recent: 1 } | { q }.
+// Категорія й пошук — у вибраній мові; обране й нещодавні — з обох мов.
 
 import * as hmUI from '@zos/ui'
 import { push, replace } from '@zos/router'
 import { scrollTo } from '@zos/page'
 import { getDeviceInfo } from '@zos/device'
-import { CATS } from '../data/phrases'
+import { LANGS, LANG_SHORT, CATS, ITEMS } from '../data/phrases'
 import { buildIndex, search } from '../utils/search'
-import { loadState } from '../utils/store'
+import { loadState, splitKey } from '../utils/store'
 import { setList, saveScroll, takeScroll, setQuery } from '../utils/nav'
 import { COLOR, STATUS_BAR_H, MAX_RESULTS } from '../utils/constants'
 import { statusBar, parseParams, textHeight, tappable, phrases, scrollTop } from '../utils/ui'
@@ -16,43 +17,60 @@ const PAD = 16
 const TOP_SIZE = 24
 const SUB_SIZE = 22
 
-function itemOf(c, it) {
-  return { ua: it[0], de: it[1], pr: it[2], dir: c.dir, cat: c.title }
+function itemOf(lang, ci, it) {
+  const c = CATS[ci]
+  return { ua: it[0], fo: it[1], pr: it[2], dir: c.dir, cat: c.title, lang }
+}
+
+// «мова:текст» → фраза (перша з таким текстом у цій мові).
+function resolve(keys) {
+  const out = []
+  keys.forEach((key) => {
+    const { lang, fo } = splitKey(key)
+    const lists = ITEMS[lang]
+    if (!lists) return
+    for (let ci = 0; ci < lists.length; ci++) {
+      const it = lists[ci].find((x) => x[1] === fo)
+      if (it) {
+        out.push(itemOf(lang, ci, it))
+        return
+      }
+    }
+  })
+  return out
 }
 
 Page({
   onInit(params) {
     const p = parseParams(params)
+    const st = loadState()
+    const lang = LANGS.indexOf(st.target) >= 0 ? st.target : LANGS[0]
     this.alive = true
     this.leaving = false
-    this.mode = p.q ? 'search' : p.fav ? 'fav' : 'cat'
+    this.mode = p.q ? 'search' : p.fav ? 'fav' : p.recent ? 'recent' : 'cat'
+    this.mixed = this.mode === 'fav' || this.mode === 'recent'
     this.query = String(p.q || '')
-    this.key = this.mode + ':' + (p.cat || this.query)
+    this.key = this.mode + ':' + lang + ':' + (p.cat || this.query)
     this.total = 0
     let items = []
     let title = ''
 
     if (this.mode === 'cat') {
-      const c = CATS.find((x) => x.id === p.cat)
-      title = c ? c.title : 'Не знайдено'
-      items = c ? c.items.map((it) => itemOf(c, it)) : []
+      const ci = CATS.findIndex((x) => x.id === p.cat)
+      title = ci >= 0 ? CATS[ci].title : 'Не знайдено'
+      items = ci >= 0 ? ITEMS[lang][ci].map((it) => itemOf(lang, ci, it)) : []
     } else if (this.mode === 'fav') {
       title = 'Обране'
-      loadState().fav.forEach((de) => {
-        for (let i = 0; i < CATS.length; i++) {
-          const it = CATS[i].items.find((x) => x[1] === de)
-          if (it) {
-            items.push(itemOf(CATS[i], it))
-            return
-          }
-        }
-      })
+      items = resolve(st.fav)
+    } else if (this.mode === 'recent') {
+      title = 'Нещодавні'
+      items = resolve(st.recent)
     } else {
-      title = '«' + this.query + '»'
+      title = '«' + this.query + '» · ' + LANG_SHORT[lang]
       setQuery(this.query)
-      const r = search(buildIndex(CATS), this.query, MAX_RESULTS)
+      const r = search(buildIndex(ITEMS[lang]), this.query, MAX_RESULTS)
       this.total = r.total
-      items = r.hits.map(([ci, ii]) => itemOf(CATS[ci], CATS[ci].items[ii]))
+      items = r.hits.map(([ci, ii]) => itemOf(lang, ci, ITEMS[lang][ci][ii]))
     }
     this.title = title
     this.items = items
@@ -116,9 +134,11 @@ Page({
       const empty =
         this.mode === 'fav'
           ? 'Поки порожньо.\nВідкрий фразу й натисни «В обране».'
-          : this.mode === 'search'
-            ? 'Нічого не знайдено.\nСпробуй коротше слово або іншою мовою.'
-            : 'Категорію не знайдено.'
+          : this.mode === 'recent'
+            ? 'Поки порожньо.'
+            : this.mode === 'search'
+              ? 'Нічого не знайдено.\nСпробуй коротше слово або іншою мовою.'
+              : 'Категорію не знайдено.'
       hmUI.createWidget(hmUI.widget.TEXT, {
         x: 30,
         y: y + 10,
@@ -153,9 +173,10 @@ Page({
 
   // Повертає низ картки.
   row(item, i, y, W) {
-    const deFirst = item.dir === 'de'
-    const first = deFirst ? item.de : item.ua
-    const second = deFirst ? item.ua : item.de
+    const foFirst = item.dir === 'fo'
+    const fo = this.mixed ? LANG_SHORT[item.lang] + ' · ' + item.fo : item.fo
+    const first = foFirst ? fo : item.ua
+    const second = foFirst ? item.ua : fo
     const textW = W - PAD * 2 - 32
     const h1 = textHeight(first, TOP_SIZE, textW)
     const h2 = textHeight(second, SUB_SIZE, textW)
@@ -181,7 +202,7 @@ Page({
       h: h2,
       text: second,
       text_size: SUB_SIZE,
-      color: deFirst ? COLOR.TEXT_DIM : COLOR.DE,
+      color: foFirst ? COLOR.TEXT_DIM : COLOR.DE,
       align_h: hmUI.align.LEFT,
       align_v: hmUI.align.TOP,
       text_style: hmUI.text_style.WRAP

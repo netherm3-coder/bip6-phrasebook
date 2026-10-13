@@ -1,4 +1,4 @@
-// Німецька фраза на весь екран — показати співрозмовнику. Торкнись — назад.
+// Іноземна фраза на весь екран — показати співрозмовнику. Торкнись — назад.
 
 import * as hmUI from '@zos/ui'
 import { back } from '@zos/router'
@@ -14,7 +14,7 @@ Page({
     const p = parseParams(params)
     const items = getList().items
     const item = items[Number(p.pos) || 0]
-    this.text = item ? item.de : ''
+    this.text = item ? item.fo : ''
     this.closing = false
   },
 

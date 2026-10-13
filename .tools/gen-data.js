@@ -1,39 +1,57 @@
 #!/usr/bin/env node
-// Збирає .data/phrases.txt у модулі data/phrases.js і data/meta.js та перевіряє фрази:
-// три поля, лише символи, які точно є в шрифті годинника, наголос у вимові.
+// Збирає .data/de.txt і .data/en.txt у модулі data/phrases.js і data/meta.js та перевіряє:
+// три поля, лише символи, які точно є в шрифті годинника, наголос у вимові,
+// однакові категорії (id, назви, порядок) в обох мовах.
 // Запуск: node .tools/gen-data.js   (з --check — лише перевірити, нічого не писати)
 
 const fs = require('fs')
 const path = require('path')
 
 const ROOT = path.resolve(__dirname, '..')
-const SRC = path.join(ROOT, '.data/phrases.txt')
 const OUT_DATA = path.join(ROOT, 'data/phrases.js')
 const OUT_META = path.join(ROOT, 'data/meta.js')
 
 const PUNCT = " .,!?:;()«»'’\"—–-…/%+0123456789"
 const CYR = 'абвгґдеєжзиіїйклмнопрстуфхцчшщьюя'
 const CYR_ALL = CYR + CYR.toUpperCase()
-const LAT = 'abcdefghijklmnopqrstuvwxyzäöüß'
-const LAT_ALL = LAT + LAT.toUpperCase().replace('SS', '') + 'ÄÖÜ'
-const ALLOWED = {
-  ua: new Set(Array.from(CYR_ALL + LAT_ALL + PUNCT)),
-  de: new Set(Array.from(LAT_ALL + PUNCT)),
-  pr: new Set(Array.from(CYR_ALL + PUNCT))
-}
+const LAT = 'abcdefghijklmnopqrstuvwxyz'
+const LAT_ALL = LAT + LAT.toUpperCase()
 const VOWELS = 'аеиіїоуєюя'
 
-function syllables(word) {
+// Склади у вимові. Німецька: «ау» — один склад.
+function syllablesDe(word) {
   const w = word.toLowerCase()
   let n = 0
   for (let i = 0; i < w.length; i++) {
     if (VOWELS.indexOf(w[i]) < 0) continue
-    // «ау» — один склад (нім. au)
     if (w[i] === 'у' && i > 0 && w[i - 1] === 'а') continue
     n++
   }
   return n
 }
+
+// Англійська: «оу», «ау» — один склад; «у» перед голосним — це w (уот, уЕа).
+function syllablesEn(word) {
+  const w = word.toLowerCase()
+  let n = 0
+  for (let i = 0; i < w.length; i++) {
+    const ch = w[i]
+    if (VOWELS.indexOf(ch) < 0) continue
+    if (ch === 'у') {
+      const prev = w[i - 1]
+      const next = w[i + 1]
+      if (prev === 'о' || prev === 'а') continue
+      if (next && VOWELS.indexOf(next) >= 0) continue
+    }
+    n++
+  }
+  return n
+}
+
+const LANGS = [
+  { code: 'de', name: 'Deutsch', short: 'DE', file: '.data/de.txt', foreign: LAT_ALL + 'äöüßÄÖÜ', syllables: syllablesDe },
+  { code: 'en', name: 'English', short: 'EN', file: '.data/en.txt', foreign: LAT_ALL, syllables: syllablesEn }
+]
 
 function upperVowels(word) {
   let n = 0
@@ -41,7 +59,7 @@ function upperVowels(word) {
   return n
 }
 
-function checkStress(pr) {
+function checkStress(pr, syllables) {
   const problems = []
   pr.split(/[\s,.!?:;()…\/—–-]+/)
     .filter(Boolean)
@@ -54,14 +72,19 @@ function checkStress(pr) {
   return problems
 }
 
-function parse(text) {
+function parse(text, lang) {
+  const allowed = {
+    ua: new Set(Array.from(CYR_ALL + LAT_ALL + PUNCT)),
+    fo: new Set(Array.from(lang.foreign + PUNCT)),
+    pr: new Set(Array.from(CYR_ALL + PUNCT))
+  }
   const groups = []
   const cats = []
   const errors = []
   let cat = null
   text.split('\n').forEach((raw, i) => {
     const line = raw.trim()
-    const at = 'рядок ' + (i + 1)
+    const at = lang.code + '.txt, рядок ' + (i + 1)
     if (!line || line.startsWith('//')) return
     if (line.startsWith('## ')) {
       groups.push(line.slice(3).trim())
@@ -70,7 +93,7 @@ function parse(text) {
     if (line.startsWith('# ')) {
       const parts = line.slice(2).split('|').map((s) => s.trim())
       if (!groups.length) errors.push(at + ': категорія поза групою')
-      cat = { id: parts[0], title: parts[1], group: groups.length - 1, dir: parts[2] === 'de' ? 'de' : 'ua', items: [] }
+      cat = { id: parts[0], title: parts[1], group: groups.length - 1, dir: parts[2] === 'fo' ? 'fo' : 'ua', items: [] }
       if (!/^[a-z]+$/.test(cat.id) || !cat.title) errors.push(at + ': погана категорія')
       cats.push(cat)
       return
@@ -84,63 +107,105 @@ function parse(text) {
       errors.push(at + ': треба 3 поля через « | »: ' + line)
       return
     }
-    ;['ua', 'de', 'pr'].forEach((k, j) => {
-      const bad = Array.from(f[j]).filter((ch) => !ALLOWED[k].has(ch))
+    ;['ua', 'fo', 'pr'].forEach((k, j) => {
+      const bad = Array.from(f[j]).filter((ch) => !allowed[k].has(ch))
       if (bad.length) errors.push(at + ': недозволені символи в ' + k + ': ' + JSON.stringify(bad.join('')))
     })
-    checkStress(f[2]).forEach((p) => errors.push(at + ': наголос: ' + p))
+    checkStress(f[2], lang.syllables).forEach((p) => errors.push(at + ': наголос: ' + p))
     cat.items.push(f)
   })
   const ids = new Set()
   cats.forEach((c) => {
-    if (ids.has(c.id)) errors.push('повтор id категорії ' + c.id)
+    if (ids.has(c.id)) errors.push(lang.code + ': повтор id категорії ' + c.id)
     ids.add(c.id)
-    if (!c.items.length) errors.push('порожня категорія ' + c.id)
-  })
-  const seen = new Map()
-  cats.forEach((c) =>
+    if (!c.items.length) errors.push(lang.code + ': порожня категорія ' + c.id)
+    const seen = new Set()
     c.items.forEach((it) => {
-      const key = it[1]
-      if (seen.has(key) && seen.get(key) !== c.id) {
-        // однакова німецька фраза в різних категоріях допустима, але не в одній
-      } else if (seen.has(key)) errors.push('повтор у ' + c.id + ': ' + key)
-      seen.set(key, c.id)
+      if (seen.has(it[1])) errors.push(lang.code + ': повтор у ' + c.id + ': ' + it[1])
+      seen.add(it[1])
     })
-  )
+  })
   return { groups, cats, errors }
 }
 
+function load() {
+  const parsed = LANGS.map((lang) => Object.assign({ lang }, parse(fs.readFileSync(path.join(ROOT, lang.file), 'utf8'), lang)))
+  const errors = [].concat(...parsed.map((p) => p.errors))
+  const base = parsed[0]
+  parsed.slice(1).forEach((p) => {
+    if (JSON.stringify(p.groups) !== JSON.stringify(base.groups)) errors.push(p.lang.code + ': групи не збігаються з ' + base.lang.code)
+    const a = base.cats.map((c) => [c.id, c.title, c.group, c.dir].join('|'))
+    const b = p.cats.map((c) => [c.id, c.title, c.group, c.dir].join('|'))
+    if (a.join('\n') !== b.join('\n')) {
+      errors.push(p.lang.code + ': категорії не збігаються з ' + base.lang.code + ' (id, назва, група, порядок)')
+      const diff = a.filter((x, i) => x !== b[i]).slice(0, 3)
+      diff.forEach((d) => errors.push('  ' + base.lang.code + ': ' + d))
+    }
+  })
+  return { parsed, errors }
+}
+
 function main() {
-  const { groups, cats, errors } = parse(fs.readFileSync(SRC, 'utf8'))
-  const total = cats.reduce((s, c) => s + c.items.length, 0)
+  const { parsed, errors } = load()
   if (errors.length) {
     errors.forEach((e) => console.error('✗ ' + e))
     console.error(errors.length + ' помилок')
     process.exit(1)
   }
-  console.log('Категорій: ' + cats.length + ', фраз: ' + total)
+  const base = parsed[0]
+  const totals = {}
+  parsed.forEach((p) => {
+    totals[p.lang.code] = p.cats.reduce((s, c) => s + c.items.length, 0)
+  })
+  console.log('Категорій: ' + base.cats.length + ', фраз: ' + parsed.map((p) => p.lang.code + ' ' + totals[p.lang.code]).join(', '))
   if (process.argv.includes('--check')) return
-  const head = '// Згенеровано з .data/phrases.txt командою node .tools/gen-data.js — не редагувати вручну.\n'
+
+  const head = '// Згенеровано з .data/*.txt командою node .tools/gen-data.js — не редагувати вручну.\n'
+  const names = {}
+  const shorts = {}
+  LANGS.forEach((l) => {
+    names[l.code] = l.name
+    shorts[l.code] = l.short
+  })
+  const common =
+    'export const LANGS = ' + JSON.stringify(LANGS.map((l) => l.code)) + '\n' +
+    'export const LANG_NAMES = ' + JSON.stringify(names) + '\n' +
+    'export const LANG_SHORT = ' + JSON.stringify(shorts) + '\n' +
+    'export const GROUPS = ' + JSON.stringify(base.groups) + '\n'
+  const cats = base.cats.map((c) => ({ id: c.id, title: c.title, group: c.group, dir: c.dir }))
   const data =
     head +
-    '// Фраза: [українською, німецькою, вимова]. dir: "de" — спершу показувати німецькою.\n\n' +
-    'export const GROUPS = ' + JSON.stringify(groups) + '\n\n' +
-    'export const CATS = [\n' +
-    cats
+    '// Фраза: [українською, іноземною, вимова]. dir: "fo" — спершу показувати іноземною.\n\n' +
+    common + '\n' +
+    'export const CATS = ' + JSON.stringify(cats, null, 2) + '\n\n' +
+    'export const ITEMS = {\n' +
+    parsed
       .map(
-        (c) =>
-          '  {\n    id: ' + JSON.stringify(c.id) + ',\n    title: ' + JSON.stringify(c.title) +
-          ',\n    group: ' + c.group + ',\n    dir: ' + JSON.stringify(c.dir) + ',\n    items: [\n' +
-          c.items.map((it) => '      ' + JSON.stringify(it)).join(',\n') + '\n    ]\n  }'
+        (p) =>
+          '  ' + p.lang.code + ': [\n' +
+          p.cats.map((c) => '    [\n' + c.items.map((it) => '      ' + JSON.stringify(it)).join(',\n') + '\n    ]').join(',\n') +
+          '\n  ]'
       )
       .join(',\n') +
-    '\n]\n'
+    '\n}\n'
   const meta =
     head +
     '// Лише назви й кількість — для головної сторінки, щоб не вантажити всі фрази.\n\n' +
-    'export const GROUPS = ' + JSON.stringify(groups) + '\n\n' +
-    'export const META = ' + JSON.stringify(cats.map((c) => ({ id: c.id, title: c.title, group: c.group, count: c.items.length })), null, 2) + '\n\n' +
-    'export const TOTAL = ' + total + '\n'
+    common + '\n' +
+    'export const META = ' +
+    JSON.stringify(
+      base.cats.map((c, i) => {
+        const count = {}
+        parsed.forEach((p) => {
+          count[p.lang.code] = p.cats[i].items.length
+        })
+        return { id: c.id, title: c.title, group: c.group, count }
+      }),
+      null,
+      2
+    ) +
+    '\n\n' +
+    'export const TOTAL = ' + JSON.stringify(totals) + '\n'
   fs.mkdirSync(path.dirname(OUT_DATA), { recursive: true })
   fs.writeFileSync(OUT_DATA, data)
   fs.writeFileSync(OUT_META, meta)
@@ -148,4 +213,4 @@ function main() {
 }
 
 if (require.main === module) main()
-module.exports = { parse, checkStress, syllables }
+module.exports = { parse, checkStress, syllablesDe, syllablesEn, LANGS }
