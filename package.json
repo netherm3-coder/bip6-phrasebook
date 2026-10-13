@@ -1,0 +1,11 @@
+{
+  "name": "bip6-phrasebook",
+  "version": "1.0.0",
+  "description": "Українсько-німецький розмовник для Amazfit Bip 6 (Zepp OS)",
+  "private": true,
+  "scripts": {
+    "data": "node .tools/gen-data.js",
+    "build": "zeus build",
+    "preview": "node .tools/build-preview.js"
+  }
+}
