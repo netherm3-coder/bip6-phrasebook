@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Збирає .data/de.txt і .data/en.txt у модулі data/phrases.js і data/meta.js та перевіряє:
+// Збирає .data/de.txt і .data/en.txt у модулі data/meta.js, data/<мова>.js, data/<мова>_idx.js та перевіряє:
 // три поля, лише символи, які точно є в шрифті годинника, наголос у вимові,
 // однакові категорії (id, назви, порядок) в обох мовах.
 // Запуск: node .tools/gen-data.js   (з --check — лише перевірити, нічого не писати)
@@ -17,6 +17,24 @@ const CYR_ALL = CYR + CYR.toUpperCase()
 const LAT = 'abcdefghijklmnopqrstuvwxyz'
 const LAT_ALL = LAT + LAT.toUpperCase()
 const VOWELS = 'аеиіїоуєюя'
+
+// Те саме, що norm() в utils/search.js (тест звіряє їх на всіх фразах).
+const NORM_MAP = { ä: 'a', ö: 'o', ü: 'u', ß: 'ss', ґ: 'г', ё: 'е' }
+function norm(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[äöüßґё]/g, (c) => NORM_MAP[c])
+    .replace(/['’ʼ`]/g, '')
+    .replace(/[^a-z0-9а-яєії]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Рядок пошуку для фрази: «|українською|іноземною|вимова», уже нормалізований,
+// щоб годинник не перетворював 640 фраз при кожному відкритті пошуку.
+function searchKey(it) {
+  return '|' + norm(it[0]) + '|' + norm(it[1]) + '|' + norm(it[2])
+}
 
 // Склади у вимові. Німецька: «ау» — один склад.
 function syllablesDe(word) {
@@ -167,50 +185,47 @@ function main() {
     names[l.code] = l.name
     shorts[l.code] = l.short
   })
-  const common =
+  const cats = base.cats.map((c, i) => {
+    const count = {}
+    parsed.forEach((p) => {
+      count[p.lang.code] = p.cats[i].items.length
+    })
+    return { id: c.id, title: c.title, group: c.group, dir: c.dir, count }
+  })
+  // Спільне для всіх сторінок і невелике: мови, групи, категорії з кількістю фраз.
+  const meta =
+    head +
+    '// Категорії однакові для всіх мов. dir: "fo" — спершу показувати іноземною.\n\n' +
     'export const LANGS = ' + JSON.stringify(LANGS.map((l) => l.code)) + '\n' +
     'export const LANG_NAMES = ' + JSON.stringify(names) + '\n' +
     'export const LANG_SHORT = ' + JSON.stringify(shorts) + '\n' +
-    'export const GROUPS = ' + JSON.stringify(base.groups) + '\n'
-  const cats = base.cats.map((c) => ({ id: c.id, title: c.title, group: c.group, dir: c.dir }))
-  const data =
-    head +
-    '// Фраза: [українською, іноземною, вимова]. dir: "fo" — спершу показувати іноземною.\n\n' +
-    common + '\n' +
+    'export const GROUPS = ' + JSON.stringify(base.groups) + '\n\n' +
     'export const CATS = ' + JSON.stringify(cats, null, 2) + '\n\n' +
-    'export const ITEMS = {\n' +
-    parsed
-      .map(
-        (p) =>
-          '  ' + p.lang.code + ': [\n' +
-          p.cats.map((c) => '    [\n' + c.items.map((it) => '      ' + JSON.stringify(it)).join(',\n') + '\n    ]').join(',\n') +
-          '\n  ]'
-      )
-      .join(',\n') +
-    '\n}\n'
-  const meta =
-    head +
-    '// Лише назви й кількість — для головної сторінки, щоб не вантажити всі фрази.\n\n' +
-    common + '\n' +
-    'export const META = ' +
-    JSON.stringify(
-      base.cats.map((c, i) => {
-        const count = {}
-        parsed.forEach((p) => {
-          count[p.lang.code] = p.cats[i].items.length
-        })
-        return { id: c.id, title: c.title, group: c.group, count }
-      }),
-      null,
-      2
-    ) +
-    '\n\n' +
     'export const TOTAL = ' + JSON.stringify(totals) + '\n'
-  fs.mkdirSync(path.dirname(OUT_DATA), { recursive: true })
-  fs.writeFileSync(OUT_DATA, data)
+  fs.mkdirSync(path.dirname(OUT_META), { recursive: true })
   fs.writeFileSync(OUT_META, meta)
-  console.log('Записано data/phrases.js і data/meta.js')
+  // Фрази — окремий модуль на кожну мову: сторінка вантажить лише свою.
+  parsed.forEach((p) => {
+    const body =
+      head +
+      '// ' + p.lang.name + '. ITEMS[категорія] = [[українською, іноземною, вимова], …], порядок категорій — як у meta.js.\n\n' +
+      'export const ITEMS = [\n' +
+      p.cats.map((c) => '  [\n' + c.items.map((it) => '    ' + JSON.stringify(it)).join(',\n') + '\n  ]').join(',\n') +
+      '\n]\n'
+    fs.writeFileSync(path.join(ROOT, 'data', p.lang.code + '.js'), body)
+    // Готовий індекс пошуку — лише для сторінки пошуку цієї мови.
+    const keys = [].concat(...p.cats.map((c) => c.items.map(searchKey)))
+    const idx =
+      head +
+      '// ' + p.lang.name + ': рядки пошуку «|українською|іноземною|вимова» (нормалізовані), по порядку фраз у ' + p.lang.code + '.js.\n\n' +
+      'export const IDX = [\n' + keys.map((k) => '  ' + JSON.stringify(k)).join(',\n') + '\n]\n'
+    fs.writeFileSync(path.join(ROOT, 'data', p.lang.code + '_idx.js'), idx)
+  })
+  try {
+    fs.rmSync(OUT_DATA)
+  } catch (e) {}
+  console.log('Записано data/meta.js, ' + parsed.map((p) => 'data/' + p.lang.code + '.js, data/' + p.lang.code + '_idx.js').join(', '))
 }
 
 if (require.main === module) main()
-module.exports = { parse, checkStress, syllablesDe, syllablesEn, LANGS }
+module.exports = { parse, checkStress, syllablesDe, syllablesEn, norm, searchKey, LANGS }

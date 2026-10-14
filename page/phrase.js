@@ -5,9 +5,9 @@ import { push, replace, back } from '@zos/router'
 import { getDeviceInfo } from '@zos/device'
 import { LANG_SHORT } from '../data/meta'
 import { getList } from '../utils/nav'
-import { loadState, isFav, toggleFav, addRecent, keyOf } from '../utils/store'
+import { loadState, isFav, toggleFav, addRecent } from '../utils/store'
 import { COLOR, STATUS_BAR_H, SCREEN_ON_MS } from '../utils/constants'
-import { statusBar, keepScreen, parseParams, textHeight, setProps } from '../utils/ui'
+import { statusBar, keepScreen, parseParams, cachedHeight, setProps } from '../utils/ui'
 
 const PAD = 22
 const UA_SIZE = 24
@@ -22,7 +22,6 @@ Page({
     this.pos = Math.max(0, Math.min(this.items.length - 1, Number(p.pos) || 0))
     this.item = this.items[this.pos] || null
     this.state = loadState()
-    this.key = this.item ? keyOf(this.item.lang, this.item.fo) : ''
     this.leaving = false
   },
 
@@ -52,7 +51,7 @@ Page({
     }
 
     const it = this.item
-    addRecent(this.state, this.key)
+    addRecent(this.state, it)
     hmUI.createWidget(hmUI.widget.TEXT, {
       x: PAD,
       y,
@@ -67,7 +66,7 @@ Page({
     })
     y += 38
 
-    const blocks =
+    const blocks = (
       it.dir === 'fo'
         ? [
             [it.fo, FO_SIZE, COLOR.TEXT],
@@ -79,8 +78,9 @@ Page({
             [it.fo, FO_SIZE, COLOR.TEXT],
             [it.pr, PR_SIZE, COLOR.PRON]
           ]
+    ).filter((b) => b[0])
     blocks.forEach(([text, size, color], i) => {
-      const h = textHeight(text, size, textW) + 4
+      const h = cachedHeight(text, size, textW) + 4
       hmUI.createWidget(hmUI.widget.TEXT, {
         x: PAD,
         y,
@@ -131,7 +131,7 @@ Page({
   },
 
   paintFav() {
-    const fav = isFav(this.state, this.key)
+    const fav = isFav(this.state, this.item)
     setProps(this.favBtn, {
       x: 16,
       y: this.favY,
@@ -143,7 +143,7 @@ Page({
   },
 
   toggle() {
-    toggleFav(this.state, this.key)
+    toggleFav(this.state, this.item)
     this.paintFav()
   },
 

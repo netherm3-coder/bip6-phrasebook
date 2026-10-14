@@ -1,58 +1,48 @@
 // Головна: пошук, обране, мова перекладу (Deutsch / English), нещодавні, категорії.
+// Кожен рядок — одна кнопка: мало віджетів, тож головна відкривається й гортається швидко.
 
 import * as hmUI from '@zos/ui'
 import { push, replace } from '@zos/router'
 import { getDeviceInfo } from '@zos/device'
-import { LANGS, LANG_NAMES, GROUPS, META, TOTAL } from '../data/meta'
-import { loadState, setTarget } from '../utils/store'
+import { LANGS, LANG_NAMES, GROUPS, CATS, TOTAL } from '../data/meta'
+import { loadState, setTarget, fixLangs } from '../utils/store'
+import { once } from '../utils/nav'
 import { COLOR, STATUS_BAR_H } from '../utils/constants'
-import { statusBar, tappable, phrases } from '../utils/ui'
+import { statusBar, phrases } from '../utils/ui'
 
-const ROW_H = 62
+const ROW_H = 60
 const ROW_GAP = 8
 
 Page({
   onInit() {
-    this.alive = true
     this.leaving = false
     this.state = loadState()
+    // Обране зі старої версії спершу доповнюється (сторінками категорій тих мов, один раз).
+    const langs = fixLangs(this.state)
+    this.fixing = langs.length && once('fix') ? langs : null
   },
 
   build() {
     const { width: W } = getDeviceInfo()
     this.W = W
     statusBar(true)
+    if (this.fixing) {
+      const langs = this.fixing
+      this.leaving = true
+      setTimeout(() => replace({ url: 'page/cat_' + langs[0], params: JSON.stringify({ fix: langs.join(',') }) }), 0)
+      return
+    }
     const st = this.state
     let y = STATUS_BAR_H + 6
 
     const half = Math.floor((W - 32 - 10) / 2)
-    hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 16,
-      y,
-      w: half,
-      h: 58,
-      radius: 29,
-      normal_color: COLOR.ACCENT,
-      press_color: COLOR.ACCENT_PRESS,
-      text: 'Пошук',
-      text_size: 26,
-      color: COLOR.TEXT,
-      click_func: () => this.go('page/search', {})
-    })
+    this.button(16, y, half, 58, 'Пошук', COLOR.ACCENT, COLOR.ACCENT_PRESS, COLOR.TEXT, 26, () =>
+      this.go('page/search_' + st.target, {})
+    )
     const favN = st.fav.length
-    hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 16 + half + 10,
-      y,
-      w: half,
-      h: 58,
-      radius: 29,
-      normal_color: COLOR.NEUTRAL,
-      press_color: COLOR.NEUTRAL_PRESS,
-      text: 'Обране' + (favN ? ' · ' + favN : ''),
-      text_size: 24,
-      color: favN ? COLOR.FAV : COLOR.TEXT,
-      click_func: () => this.go('page/list', { fav: 1 })
-    })
+    this.button(16 + half + 10, y, half, 58, 'Обране' + (favN ? ' · ' + favN : ''), COLOR.NEUTRAL, COLOR.NEUTRAL_PRESS, favN ? COLOR.FAV : COLOR.TEXT, 24, () =>
+      this.go('page/items', { fav: 1 })
+    )
     y += 58 + 10
 
     // Мова перекладу: дві кнопки, вибрана — синя.
@@ -60,19 +50,9 @@ Page({
     const segW = Math.floor((W - 32 - 8) / LANGS.length)
     LANGS.forEach((lang, i) => {
       const active = lang === st.target
-      hmUI.createWidget(hmUI.widget.BUTTON, {
-        x: 20 + i * segW,
-        y: y + 4,
-        w: segW,
-        h: 48,
-        radius: 24,
-        normal_color: active ? COLOR.ACCENT : COLOR.CARD,
-        press_color: active ? COLOR.ACCENT : COLOR.CARD_PRESS,
-        text: LANG_NAMES[lang],
-        text_size: 24,
-        color: active ? COLOR.TEXT : COLOR.TEXT_DIM,
-        click_func: () => this.switchTo(lang)
-      })
+      this.button(20 + i * segW, y + 4, segW, 48, LANG_NAMES[lang], active ? COLOR.ACCENT : COLOR.CARD, active ? COLOR.ACCENT : COLOR.CARD_PRESS, active ? COLOR.TEXT : COLOR.TEXT_DIM, 24, () =>
+        this.switchTo(lang)
+      )
     })
     y += 56 + 8
 
@@ -91,7 +71,7 @@ Page({
     y += 62
 
     if (st.recent.length) {
-      this.row('Нещодавні', st.recent.length, y, W, () => this.go('page/list', { recent: 1 }))
+      this.row(y, 'Нещодавні · ' + st.recent.length, () => this.go('page/items', { recent: 1 }))
       y += ROW_H + ROW_GAP
     }
 
@@ -110,42 +90,33 @@ Page({
         text_style: hmUI.text_style.NONE
       })
       y += 40
-      META.filter((m) => m.group === gi).forEach((m) => {
-        this.row(m.title, m.count[st.target], y, W, () => this.go('page/list', { cat: m.id }))
+      CATS.forEach((c) => {
+        if (c.group !== gi) return
+        this.row(y, c.title, () => this.go('page/cat_' + st.target, { cat: c.id }))
         y += ROW_H + ROW_GAP
       })
     })
     hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 0, y: y + 60, w: W, h: 2, radius: 0, color: COLOR.BG })
   },
 
-  row(title, count, y, W, onTap) {
-    const rect = { x: 16, y, w: W - 32, h: ROW_H, radius: 18 }
-    const bg = hmUI.createWidget(hmUI.widget.FILL_RECT, Object.assign({ color: COLOR.CARD }, rect))
-    const t = hmUI.createWidget(hmUI.widget.TEXT, {
-      x: 34,
+  row(y, text, onClick) {
+    this.button(16, y, this.W - 32, ROW_H, text, COLOR.CARD, COLOR.CARD_PRESS, COLOR.TEXT, 25, onClick, 18)
+  },
+
+  button(x, y, w, h, text, color, press, textColor, size, onClick, radius) {
+    hmUI.createWidget(hmUI.widget.BUTTON, {
+      x,
       y,
-      w: W - 68 - 56,
-      h: ROW_H,
-      text: title,
-      text_size: 25,
-      color: COLOR.TEXT,
-      align_h: hmUI.align.LEFT,
-      align_v: hmUI.align.CENTER_V,
-      text_style: hmUI.text_style.ELLIPSIS
+      w,
+      h,
+      radius: radius === undefined ? Math.floor(h / 2) : radius,
+      normal_color: color,
+      press_color: press,
+      text,
+      text_size: size,
+      color: textColor,
+      click_func: onClick
     })
-    const c = hmUI.createWidget(hmUI.widget.TEXT, {
-      x: W - 34 - 56,
-      y,
-      w: 56,
-      h: ROW_H,
-      text: String(count),
-      text_size: 22,
-      color: COLOR.TEXT_DIM,
-      align_h: hmUI.align.RIGHT,
-      align_v: hmUI.align.CENTER_V,
-      text_style: hmUI.text_style.NONE
-    })
-    tappable([bg, t, c], bg, rect, COLOR.CARD, COLOR.CARD_PRESS, onTap, () => this.alive)
   },
 
   switchTo(lang) {
@@ -162,9 +133,5 @@ Page({
       this.leaving = false
     }, 1000)
     push({ url, params: JSON.stringify(params) })
-  },
-
-  onDestroy() {
-    this.alive = false
   }
 })

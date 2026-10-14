@@ -1,16 +1,17 @@
 // Згенеровано з .data/*.txt командою node .tools/gen-data.js — не редагувати вручну.
-// Лише назви й кількість — для головної сторінки, щоб не вантажити всі фрази.
+// Категорії однакові для всіх мов. dir: "fo" — спершу показувати іноземною.
 
 export const LANGS = ["de","en"]
 export const LANG_NAMES = {"de":"Deutsch","en":"English"}
 export const LANG_SHORT = {"de":"DE","en":"EN"}
 export const GROUPS = ["Побут і подорож","Служба"]
 
-export const META = [
+export const CATS = [
   {
     "id": "basic",
     "title": "Основне",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 41,
       "en": 42
@@ -20,6 +21,7 @@ export const META = [
     "id": "questions",
     "title": "Питання й слова",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 21,
       "en": 21
@@ -29,6 +31,7 @@ export const META = [
     "id": "talk",
     "title": "Знайомство",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 22,
       "en": 22
@@ -38,6 +41,7 @@ export const META = [
     "id": "numbers",
     "title": "Числа",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 36,
       "en": 36
@@ -47,6 +51,7 @@ export const META = [
     "id": "time",
     "title": "Час і дати",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 31,
       "en": 31
@@ -56,6 +61,7 @@ export const META = [
     "id": "weather",
     "title": "Погода",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 13,
       "en": 13
@@ -65,6 +71,7 @@ export const META = [
     "id": "transport",
     "title": "Транспорт",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 34,
       "en": 34
@@ -74,6 +81,7 @@ export const META = [
     "id": "city",
     "title": "Місто й дорога",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 25,
       "en": 25
@@ -83,6 +91,7 @@ export const META = [
     "id": "shop",
     "title": "Магазин",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 24,
       "en": 23
@@ -92,6 +101,7 @@ export const META = [
     "id": "food",
     "title": "Кафе й їжа",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 33,
       "en": 33
@@ -101,6 +111,7 @@ export const META = [
     "id": "stay",
     "title": "Житло",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 20,
       "en": 20
@@ -110,6 +121,7 @@ export const META = [
     "id": "health",
     "title": "Здоров'я",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 27,
       "en": 27
@@ -119,6 +131,7 @@ export const META = [
     "id": "emergency",
     "title": "Екстрене",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 15,
       "en": 15
@@ -128,6 +141,7 @@ export const META = [
     "id": "docs",
     "title": "Документи",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 18,
       "en": 18
@@ -137,6 +151,7 @@ export const META = [
     "id": "money",
     "title": "Гроші й зв'язок",
     "group": 0,
+    "dir": "ua",
     "count": {
       "de": 16,
       "en": 16
@@ -146,6 +161,7 @@ export const META = [
     "id": "heard",
     "title": "Що вам скажуть",
     "group": 0,
+    "dir": "fo",
     "count": {
       "de": 31,
       "en": 32
@@ -155,6 +171,7 @@ export const META = [
     "id": "ranks",
     "title": "Звання й посади",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 31,
       "en": 30
@@ -164,6 +181,7 @@ export const META = [
     "id": "report",
     "title": "Звертання й доповідь",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 20,
       "en": 20
@@ -173,6 +191,7 @@ export const META = [
     "id": "commands",
     "title": "Команди",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 25,
       "en": 25
@@ -182,6 +201,7 @@ export const META = [
     "id": "training",
     "title": "Навчання",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 26,
       "en": 26
@@ -191,6 +211,7 @@ export const META = [
     "id": "routine",
     "title": "Розпорядок дня",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 18,
       "en": 18
@@ -200,6 +221,7 @@ export const META = [
     "id": "gear",
     "title": "Спорядження",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 28,
       "en": 28
@@ -209,6 +231,7 @@ export const META = [
     "id": "weapons",
     "title": "Зброя й стрільбище",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 24,
       "en": 23
@@ -218,6 +241,7 @@ export const META = [
     "id": "medical",
     "title": "Тактична медицина",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 21,
       "en": 21
@@ -227,6 +251,7 @@ export const META = [
     "id": "radio",
     "title": "Радіозв'язок",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 17,
       "en": 19
@@ -236,6 +261,7 @@ export const META = [
     "id": "terrain",
     "title": "Місцевість",
     "group": 1,
+    "dir": "ua",
     "count": {
       "de": 22,
       "en": 22

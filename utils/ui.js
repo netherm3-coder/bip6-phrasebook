@@ -1,6 +1,7 @@
 import * as hmUI from '@zos/ui'
 import { getScrollTop } from '@zos/page'
 import { setPageBrightTime } from '@zos/display'
+import { shared } from './nav'
 
 export function statusBar(visible) {
   try {
@@ -61,6 +62,24 @@ export function measure(text, size, width) {
 
 export function textHeight(text, size, width) {
   return measure(text || ' ', size, width).height
+}
+
+// Те саме з пам'яттю на весь запуск програми: список після «назад» з фрази
+// і повторно відкрита фраза будуються без вимірювань.
+export function cachedHeight(text, size, width) {
+  const g = shared()
+  if (!g.heights || g.heightsN > 800) {
+    g.heights = {}
+    g.heightsN = 0
+  }
+  const k = size + '|' + width + '|' + text
+  let h = g.heights[k]
+  if (h === undefined) {
+    h = textHeight(text, size, width)
+    g.heights[k] = h
+    g.heightsN++
+  }
+  return h
 }
 
 // Найбільший кегль, з яким текст влазить у прямокутник.

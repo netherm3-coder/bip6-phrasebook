@@ -5,8 +5,8 @@
     "appName": "Розмовник",
     "appType": "app",
     "version": {
-      "code": 2,
-      "name": "1.1.0"
+      "code": 3,
+      "name": "1.2.0"
     },
     "icon": "icon.png",
     "vender": "netherm3",
@@ -25,7 +25,16 @@
     "default": {
       "module": {
         "page": {
-          "pages": ["page/index", "page/list", "page/phrase", "page/big", "page/search"]
+          "pages": [
+            "page/index",
+            "page/cat_de",
+            "page/cat_en",
+            "page/items",
+            "page/phrase",
+            "page/big",
+            "page/search_de",
+            "page/search_en"
+          ]
         }
       },
       "platforms": [

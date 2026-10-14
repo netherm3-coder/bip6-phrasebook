@@ -1,4 +1,6 @@
 // Пошук по фразах однієї мови: українською, іноземною (умлаути можна не набирати) і за вимовою.
+// Шукає в готовому індексі data/<мова>_idx.js: рядок на фразу «|українською|іноземною|вимова»,
+// уже нормалізований генератором, — годиннику лишається тільки indexOf.
 
 const MAP = { ä: 'a', ö: 'o', ü: 'u', ß: 'ss', ґ: 'г', ё: 'е' }
 
@@ -12,40 +14,66 @@ export function norm(s) {
     .trim()
 }
 
-// lists — фрази мови по категоріях: [[ [ua, fo, pr], … ], …]
-export function buildIndex(lists) {
-  const index = []
-  lists.forEach((items, ci) =>
-    items.forEach((it, ii) => {
-      index.push({ ci, ii, ua: norm(it[0]), fo: norm(it[1]), all: norm(it[0] + ' ' + it[1] + ' ' + it[2]) })
-    })
-  )
-  return index
+export function words(query) {
+  const n = norm(query)
+  return n ? n.split(' ') : []
 }
 
-function startsWord(text, word) {
-  return text.indexOf(word) === 0 || text.indexOf(' ' + word) >= 0
-}
-
-// Повертає { total, hits: [[ci, ii], …] } — спершу ті, де слово запиту починає слово фрази.
-export function search(index, query, limit) {
-  const words = norm(query).split(' ').filter(Boolean)
-  if (!words.length) return { total: 0, hits: [] }
-  const first = []
-  const rest = []
-  for (let i = 0; i < index.length; i++) {
-    const e = index[i]
+// Номери фраз, що містять кожне слово запиту, по порядку.
+// among — шукати лише серед цих номерів (попередній результат, коли запит лише доповнили).
+export function match(idx, ws, among) {
+  const out = []
+  if (!ws.length) return out
+  const n = among ? among.length : idx.length
+  for (let j = 0; j < n; j++) {
+    const i = among ? among[j] : j
+    const e = idx[i]
     let ok = true
-    for (let w = 0; w < words.length; w++) {
-      if (e.all.indexOf(words[w]) < 0) {
+    for (let w = 0; w < ws.length; w++) {
+      if (e.indexOf(ws[w]) < 0) {
         ok = false
         break
       }
     }
-    if (!ok) continue
-    const strong = startsWord(e.ua, words[0]) || startsWord(e.fo, words[0])
-    ;(strong ? first : rest).push([e.ci, e.ii])
+    if (ok) out.push(i)
   }
-  const all = first.concat(rest)
-  return { total: all.length, hits: all.slice(0, limit || all.length) }
+  return out
+}
+
+// Чи починає перше слово запиту якесь слово фрази українською чи іноземною (не у вимові).
+function strong(e, a, b) {
+  const pr = e.lastIndexOf('|')
+  const i = e.indexOf(a)
+  if (i >= 0 && i < pr) return true
+  const j = e.indexOf(b)
+  return j >= 0 && j < pr
+}
+
+// Спершу «сильні» збіги, далі решта; всередині — порядок фраз.
+export function rank(idx, ws, hits) {
+  if (!ws.length) return hits
+  const a = '|' + ws[0]
+  const b = ' ' + ws[0]
+  const first = []
+  const rest = []
+  for (let k = 0; k < hits.length; k++) {
+    const i = hits[k]
+    if (strong(idx[i], a, b)) first.push(i)
+    else rest.push(i)
+  }
+  return first.concat(rest)
+}
+
+// Перший після rank() — без сортування всього списку.
+export function best(idx, ws, hits) {
+  if (!hits.length) return -1
+  const a = '|' + ws[0]
+  const b = ' ' + ws[0]
+  for (let k = 0; k < hits.length; k++) if (strong(idx[hits[k]], a, b)) return hits[k]
+  return hits[0]
+}
+
+export function search(idx, query) {
+  const ws = words(query)
+  return rank(idx, ws, match(idx, ws))
 }

@@ -30,4 +30,8 @@ export const STATUS_BAR_H = 64
 export const SCREEN_ON_MS = 60 * 1000
 
 // Скільки знайдених фраз показувати.
-export const MAX_RESULTS = 60
+export const MAX_RESULTS = 100
+
+// Фраз на одній сторінці списку: що менше віджетів, то швидше сторінка будується й гортається.
+// Сторінки рівні: 34 фрази — це 17 + 17.
+export const PAGE_MAX = 20
