@@ -32,7 +32,7 @@ export const IDX = [
   "|що це|was ist das|вас іст дас",
   "|як це сказати німецькою|wie sagt man das auf deutsch|ві закт ман дас ауф дойч",
   "|що це означає|was bedeutet das|вас бедойтет дас",
-  "|добре гаразд|in ordnung|ін ордунг",
+  "|добре гаразд|in ordnung|ін орднунг",
   "|звичайно|naturlich|натюрліх",
   "|можливо|vielleicht|філайхт",
   "|мені потрібна допомога|ich brauche hilfe|іх браухе гільфе",

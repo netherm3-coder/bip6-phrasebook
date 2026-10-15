@@ -58,3 +58,21 @@ export function once(flag) {
   g.flags[flag] = true
   return true
 }
+
+// Переклад: останній введений текст і результат { src, text, from, to, pr, engine }.
+export function setTrQuery(q) {
+  shared().trQuery = q
+}
+
+export function getTrQuery() {
+  return shared().trQuery || ''
+}
+
+export function setTranslation(t) {
+  shared().translation = t
+}
+
+export function getTranslation() {
+  const t = shared().translation
+  return t && typeof t.text === 'string' ? t : null
+}

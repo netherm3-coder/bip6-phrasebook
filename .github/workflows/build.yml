@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install Zeus CLI
         run: npm install -g @zeppos/zeus-cli@1
 
@@ -51,6 +54,7 @@ jobs:
           unzip -l out/bip6-phrasebook.zpk
           unzip -p out/bip6-phrasebook.zpk device.zip > device.zip
           unzip -l device.zip
+          unzip -l out/bip6-phrasebook.zpk | grep -q app-side.zip
           unzip -p device.zip app.json > app.json
           cat app.json; echo
           grep -q '"mode":"preview"' app.json

@@ -5,12 +5,12 @@
     "appName": "Розмовник",
     "appType": "app",
     "version": {
-      "code": 3,
-      "name": "1.2.0"
+      "code": 4,
+      "name": "1.3.0"
     },
     "icon": "icon.png",
     "vender": "netherm3",
-    "description": "Розмовник українська — німецька й англійська з вимовою, офлайн"
+    "description": "Перекладач і розмовник: українська — німецька й англійська, з вимовою"
   },
   "permissions": ["data:os.device.info", "device:os.local_storage"],
   "runtime": {
@@ -33,8 +33,13 @@
             "page/phrase",
             "page/big",
             "page/search_de",
-            "page/search_en"
+            "page/search_en",
+            "page/translate",
+            "page/result"
           ]
+        },
+        "app-side": {
+          "path": "app-side/index"
         }
       },
       "platforms": [

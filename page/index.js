@@ -1,4 +1,4 @@
-// Головна: пошук, обране, мова перекладу (Deutsch / English), нещодавні, категорії.
+// Головна: переклад, пошук фраз, обране, мова (Deutsch / English), нещодавні, категорії.
 // Кожен рядок — одна кнопка: мало віджетів, тож головна відкривається й гортається швидко.
 
 import * as hmUI from '@zos/ui'
@@ -6,7 +6,7 @@ import { push, replace } from '@zos/router'
 import { getDeviceInfo } from '@zos/device'
 import { LANGS, LANG_NAMES, GROUPS, CATS, TOTAL } from '../data/meta'
 import { loadState, setTarget, fixLangs } from '../utils/store'
-import { once } from '../utils/nav'
+import { once, setTrQuery } from '../utils/nav'
 import { COLOR, STATUS_BAR_H } from '../utils/constants'
 import { statusBar, phrases } from '../utils/ui'
 
@@ -35,15 +35,21 @@ Page({
     const st = this.state
     let y = STATUS_BAR_H + 6
 
+    // Переклад будь-якого тексту — через телефон; пошук і обране — без нього.
+    this.button(16, y, W - 32, 58, 'Перекласти', COLOR.ACCENT, COLOR.ACCENT_PRESS, COLOR.TEXT, 26, () => {
+      setTrQuery('')
+      this.go('page/translate', {})
+    })
+    y += 58 + 10
     const half = Math.floor((W - 32 - 10) / 2)
-    this.button(16, y, half, 58, 'Пошук', COLOR.ACCENT, COLOR.ACCENT_PRESS, COLOR.TEXT, 26, () =>
+    this.button(16, y, half, 54, 'Пошук фраз', COLOR.NEUTRAL, COLOR.NEUTRAL_PRESS, COLOR.TEXT, 22, () =>
       this.go('page/search_' + st.target, {})
     )
     const favN = st.fav.length
-    this.button(16 + half + 10, y, half, 58, 'Обране' + (favN ? ' · ' + favN : ''), COLOR.NEUTRAL, COLOR.NEUTRAL_PRESS, favN ? COLOR.FAV : COLOR.TEXT, 24, () =>
+    this.button(16 + half + 10, y, half, 54, 'Обране' + (favN ? ' · ' + favN : ''), COLOR.NEUTRAL, COLOR.NEUTRAL_PRESS, favN ? COLOR.FAV : COLOR.TEXT, 22, () =>
       this.go('page/items', { fav: 1 })
     )
-    y += 58 + 10
+    y += 54 + 10
 
     // Мова перекладу: дві кнопки, вибрана — синя.
     hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 16, y, w: W - 32, h: 56, radius: 28, color: COLOR.CARD })
